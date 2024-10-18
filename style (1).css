@@ -1,0 +1,244 @@
+  :root {
+            --primary-color: #3498db;
+            --secondary-color: #f1c40f;
+            --bg-color: #ecf0f1;
+            --text-color: #2c3e50;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .dark-mode {
+            --bg-color: #2c3e50;
+            --text-color: #ecf0f1;
+            --shadow-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .neumorphic {
+            background: var(--bg-color);
+            border-radius: 20px;
+            box-shadow: 8px 8px 15px var(--shadow-color), -8px -8px 15px rgba(255, 255, 255, 0.5);
+            padding: 30px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+
+        .neumorphic:hover {
+            box-shadow: 12px 12px 20px var(--shadow-color), -12px -12px 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-neumorphic {
+            background: var(--bg-color);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: bold;
+            color: var(--text-color);
+            box-shadow: 5px 5px 10px var(--shadow-color), -5px -5px 10px rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .btn-neumorphic:hover {
+            box-shadow: inset 5px 5px 10px var(--shadow-color), inset -5px -5px 10px rgba(255, 255, 255, 0.5);
+        }
+
+        #welcome-message {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .toggle-dark-mode {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .floating {
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .hidden {
+            display: none;
+        } // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCTIQV1KL75W7zw8AcJX5sF00Fdc8Y0tjk",
+            authDomain: "anonymous-app-32575.firebaseapp.com",
+            projectId: "anonymous-app-32575",
+            storageBucket: "anonymous-app-32575.appspot.com",
+            messagingSenderId: "730352688279",
+            appId: "1:730352688279:web:719129794d1d5309315dd2"
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        let currentUser = null;
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const icon = document.querySelector('.toggle-dark-mode i');
+            icon.classList.toggle('fa-moon');
+            icon.classList.toggle('fa-sun');
+        }
+
+        function showElement(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function hideElement(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    currentUser = userCredential.user;
+                    onLogin();
+                })
+                .catch((error) => {
+                    alert('Login failed: ' + error.message);
+                });
+        }
+
+        function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    currentUser = userCredential.user;
+                    onLogin();
+                })
+                .catch((error) => {
+                    alert('Registration failed: ' + error.message);
+                });
+        }
+
+        function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .then((result) => {
+                    currentUser = result.user;
+                    onLogin();
+                })
+                .catch((error) => {
+                    alert('Google login failed: ' + error.message);
+                });
+        }
+
+        function onLogin() {
+            hideElement('login-register');
+            showElement('user-dashboard');
+            document.getElementById('welcome-message').textContent = `Welcome, ${currentUser.email}!`;
+            loadMessages();
+        }
+
+        function logout() {
+            auth.signOut()
+                .then(() => {
+                    currentUser = null;
+                    showElement('login-register');
+                    hideElement('user-dashboard');
+                })
+                .catch((error) => {
+                    alert('Logout failed: ' + error.message);
+                });
+        }
+
+        function generateLink() {
+            const linkId = Math.random().toString(36).substring(2, 15);
+            const link = `${window.location.origin}?recipient=${currentUser.uid}&link=${linkId}`;
+            document.getElementById('anonymous-link').value = link;
+            showElement('generated-link');
+        }
+
+        function copyLink() {
+            const linkInput = document.getElementById('anonymous-link');
+            linkInput.select();
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        }
+
+        function loadMessages() {
+            const messageList = document.getElementById('message-list');
+            messageList.innerHTML = '';
+
+            db.ref('messages').orderByChild('recipientId').equalTo(currentUser.uid).on('value', (snapshot) => {
+                snapshot.forEach((childSnapshot) => {
+                    const message = childSnapshot.val();
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.textContent = message.text;
+                    messageList.appendChild(li);
+                });
+            });
+        }
+
+        function sendMessage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const recipientId = urlParams.get('recipient');
+            const linkId = urlParams.get('link');
+
+            if (!recipientId || !linkId) {
+                alert('Invalid link');
+                return;
+            }
+
+            const messageText = document.getElementById('message-text').value;
+
+            if (!messageText) {
+                alert('Please enter a message');
+                return;
+            }
+
+            db.ref('messages').push({
+                text: messageText,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                senderId: null,
+                recipientId: recipientId
+            }).then(() => {
+                alert('Message sent successfully!');
+                document.getElementById('message-text').value = '';
+            }).catch((error) => {
+                alert('Error sending message: ' + error.message);
+            });
+        }
+
+        // Check if we're on the send message page
+        const urlParams = new URLSearchParams(window.location.search);
+        const recipientId = urlParams.get('recipient');
+        const linkId = urlParams.get('link');
+
+        if (recipientId && linkId) {
+            hideElement('login-register');
+            hideElement('user-dashboard');
+            showElement('send-message');
+        }
+
+        // Listen for auth state changes
+        auth.onAuthStateChanged((user) => {
+            if (user && !recipientId && !linkId) {
+                currentUser = user;
+                onLogin();
+            }
+        });
